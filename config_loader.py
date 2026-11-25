@@ -1,6 +1,5 @@
 # config_loader.py
-# Liest settings.cfg. Selbst geschrieben, weil uns ConfigParser 2013 "zu kompliziert" war.
-# (Reads settings.cfg. Hand-rolled, because ConfigParser felt "too complicated" in 2013.)
+"""Load the small, known set of KM-Waechter settings."""
 
 SETTINGS_FILE = "settings.cfg"
 
@@ -14,31 +13,27 @@ KNOWN_KEYS = [
 ]
 
 
-def load_settings(path=None):
-    if path == None:
+def load_settings(path: str | None = None) -> dict[str, str]:
+    """Read settings, rejecting malformed lines and misspelled keys."""
+    if path is None:
         path = SETTINGS_FILE
     settings = {}
-    f = open(path)
-    for line in f.readlines():
-        line = line.strip()
-        if line == "":
-            continue
-        if line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue                    # kaputte Zeile? Einfach weiter. (Broken line? Just carry on.)
-        parts = line.split("=")
-        key = parts[0].strip()
-        value = parts[1].strip()
-        # Unbekannte Schluessel werden stillschweigend ignoriert. Ein Tippfehler im cfg
-        # faellt also NIE auf. (Unknown keys are silently dropped, so a typo never surfaces.)
-        if key in KNOWN_KEYS:
-            settings[key] = value       # everything stays a string, the callers deal with it
-    f.close()
+    with open(path, encoding="utf-8") as settings_file:
+        for line_number, raw_line in enumerate(settings_file, start=1):
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                raise ValueError(f"Malformed setting on line {line_number}: {line!r}")
+            key, value = (part.strip() for part in line.split("=", 1))
+            if key not in KNOWN_KEYS:
+                raise ValueError(f"Unknown setting on line {line_number}: {key!r}")
+            settings[key] = value
     return settings
 
 
-def get_int(settings, key, fallback):
+def get_int(settings: dict[str, str], key: str, fallback: int) -> int:
+    """Return a setting as an integer, or its fallback if absent or invalid."""
     if key in settings:
         try:
             return int(settings[key])
@@ -47,8 +42,6 @@ def get_int(settings, key, fallback):
     return fallback
 
 
-def get_setting(settings, key, fallback=""):
-    # Duplikat von dict.get -- war schon 2013 ueberfluessig. (A duplicate of dict.get.)
-    if key in settings:
-        return settings[key]
-    return fallback
+def get_setting(settings: dict[str, str], key: str, fallback: str = "") -> str:
+    """Return a setting or its fallback value."""
+    return settings.get(key, fallback)
